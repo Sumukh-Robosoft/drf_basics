@@ -2,7 +2,7 @@ from rest_framework.decorators import api_view,action
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializer import  PeopleSerializer,ColorSerializer,LoginSerializer,RegisterSerializer
-from rest_framework.authentication import SessionAuthentication, BasicAuthentication,TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from rest_framework import status
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
@@ -11,6 +11,7 @@ from .models import Persons
 from rest_framework.authtoken.models import Token
 from rest_framework.permissions import IsAuthenticated
 from django.core.paginator import Paginator
+from rest_framework_simplejwt.tokens import RefreshToken
 @api_view(['GET','POST'])
 def index(request):
     if request.method == 'GET':
@@ -90,7 +91,7 @@ def login(request):
 
 class PersonAPI(APIView):
     permission_classes = [IsAuthenticated]
-    authentication_classes = [TokenAuthentication]
+    authentication_classes = [JWTAuthentication]
     def get(self,request):
         objs = Persons.objects.filter(color__isnull=False)
         serializer = PeopleSerializer(objs, many=True)
@@ -177,9 +178,10 @@ class LoginAPI(APIView):
         user = authenticate(username = serializer.data['username'],password = serializer.data['password'])
         if not user:
             return Response({"status":400,"message":"Invalid credentials"},status=status.HTTP_400_BAD_REQUEST)
-        token,_= Token.objects.get_or_create(user= user)
+        refresh = RefreshToken.for_user(user)
         return Response({
             "status":True,
             "message":"login successful",
-            "token":str(token)
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
         },status=status.HTTP_200_OK)
